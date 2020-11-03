@@ -12,21 +12,54 @@ import CoreImage.CIFilterBuiltins
 
 struct ContentView: View {
     @State private var image: Image?
+    @State private var filterIntensity = 0.5
     @State private var showingImagePicker = false
     @State private var inputImage: UIImage?
     
     var body: some View {
-        VStack {
-            image?
-                .resizable()
-                .scaledToFit()
-            
-            Button("Select Image") {
-                self.showingImagePicker = true
+        NavigationView {
+            VStack {
+                ZStack {
+                    Rectangle()
+                        .fill(Color.secondary)
+                    
+                    if let image = image {
+                        image
+                            .resizable()
+                            .scaledToFit()
+                    } else {
+                        Text("Tap to select a picture")
+                            .foregroundColor(.white)
+                            .font(.headline)
+                    }
+                }
+                .onTapGesture(count: 1, perform: {
+                    self.showingImagePicker = true
+                })
+                
+                HStack {
+                    Text("Intensity")
+                    Slider(value: self.$filterIntensity)
+                }
+                .padding(.vertical)
+                
+                HStack {
+                    Button("Change Filter") {
+                        
+                    }
+                    
+                    Spacer()
+                    
+                    Button("Save") {
+                        
+                    }
+                }
             }
-        }
-        .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
-            ImagePicker(image: self.$inputImage)
+            .padding([.horizontal, .bottom])
+            .navigationBarTitle("Insta Filter")
+            .sheet(isPresented: $showingImagePicker, onDismiss: loadImage) {
+                ImagePicker(image: self.$inputImage)
+            }
         }
     }
     
