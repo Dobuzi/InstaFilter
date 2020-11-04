@@ -59,10 +59,10 @@
 				4DCDC538254EF055008F5C60 /* InstaFilterApp.swift */,
 				4DCDC53A254EF055008F5C60 /* ContentView.swift */,
 				4DBF889E255041560054B33B /* ImagePicker.swift */,
+				4DD89C8B25511E36003A2D6C /* ImageSaver.swift */,
 				4DCDC53C254EF056008F5C60 /* Assets.xcassets */,
 				4DCDC541254EF056008F5C60 /* Info.plist */,
 				4DCDC53E254EF056008F5C60 /* Preview Content */,
-				4DD89C8B25511E36003A2D6C /* ImageSaver.swift */,
 			);
 			path = InstaFilter;
 			sourceTree = "<group>";

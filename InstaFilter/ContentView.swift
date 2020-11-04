@@ -12,12 +12,21 @@ import CoreImage.CIFilterBuiltins
 
 struct ContentView: View {
     @State private var image: Image?
-    @State private var filterIntensity = 0.5
+    @State private var inputImage: UIImage?
+    @State private var processedImage: UIImage?
     
     @State private var showingImagePicker = false
-    @State private var inputImage: UIImage?
-    @State private var currentFilter: CIFilter = CIFilter.sepiaTone()
     @State private var showingFilterSheet = false
+    @State private var showingSaveAlert = false
+    
+    @State private var currentFilter: CIFilter = CIFilter.sepiaTone()
+    @State private var currentFilterName: String = "Sepia Tone"
+    
+    @State private var filterIntensity = 0.5
+    @State private var filterRadius = 100.0
+    
+    @State private var showIntensitySlider = false
+    @State private var showRadiusSlider = false
     
     let context = CIContext()
     
@@ -30,12 +39,18 @@ struct ContentView: View {
                 self.applyProcessing()
             }
         )
+        let radius = Binding<Double>(get: {
+            self.filterRadius
+        }, set: {
+            self.filterRadius = $0
+            self.applyProcessing()
+        })
         
         return NavigationView {
             VStack {
                 ZStack {
                     Rectangle()
-                        .fill(Color.secondary)
+                        .fill(Color.blue.opacity(image != nil ? 0 : 0.5))
                     
                     if let image = image {
                         image
@@ -44,31 +59,56 @@ struct ContentView: View {
                     } else {
                         Text("Tap to select a picture")
                             .foregroundColor(.white)
-                            .font(.headline)
+                            .font(.title3)
                     }
                 }
-                .cornerRadius(15)
+                .cornerRadius(50)
                 .shadow(radius: 10)
                 .onTapGesture(count: 1, perform: {
                     self.showingImagePicker = true
                 })
-                
-                HStack {
-                    Text("Intensity")
-                    Slider(value: intensity)
+                VStack {
+                    if showIntensitySlider {
+                        HStack {
+                            Text("Intensity")
+                            Slider(value: intensity)
+                        }
+                    }
+                    if showRadiusSlider {
+                        HStack {
+                            Text("Radius")
+                            Slider(value: radius, in: 0...200)
+                        }
+                    }
                 }
+                .frame(height: 100)
                 .padding(.vertical)
-                
                 HStack {
-                    Button("Change Filter") {
+                    Button(currentFilterName) {
                         self.showingFilterSheet = true
                     }
+                    .disabled(self.image == nil)
                     
                     Spacer()
                     
                     Button("Save") {
+                        guard let processedImage = self.processedImage else { return }
                         
+                        let imageSaver = ImageSaver()
+                        
+                        imageSaver.successHandler = {
+                            print("Success!")
+                        }
+                        
+                        imageSaver.errorHandler = {
+                            print("Oops: \($0.localizedDescription)")
+                        }
+                        
+                        imageSaver.writeToPhotoAlbum(image: processedImage)
+                        
+                        self.showingSaveAlert = true
                     }
+                    .disabled(self.image == nil)
                 }
             }
             .padding([.horizontal, .bottom])
@@ -78,15 +118,39 @@ struct ContentView: View {
             }
             .actionSheet(isPresented: $showingFilterSheet) {
                 ActionSheet(title: Text("Select a filter"), buttons: [
-                    .default(Text("Crystallize")) { self.setFilter(.crystallize()) },
-                    .default(Text("Edges")) { self.setFilter(.edges()) },
-                    .default(Text("Gaussian Blur")) { self.setFilter(.gaussianBlur()) },
-                    .default(Text("Pixellate")) { self.setFilter(.pixellate()) },
-                    .default(Text("Sepia Tone")) { self.setFilter(.sepiaTone()) },
-                    .default(Text("Unsharp Mask")) { self.setFilter(.unsharpMask()) },
-                    .default(Text("Vignette")) { self.setFilter(.vignette()) },
+                    .default(Text("Crystallize")) {
+                        self.currentFilterName = "Crystallize"
+                        self.setFilter(.crystallize())
+                    },
+                    .default(Text("Edges")) {
+                        self.currentFilterName = "Edges"
+                        self.setFilter(.edges())
+                    },
+                    .default(Text("Gaussian Blur")) {
+                        self.currentFilterName = "Gaussian Blur"
+                        self.setFilter(.gaussianBlur())
+                    },
+                    .default(Text("Pixellate")) {
+                        self.currentFilterName = "Pixellate"
+                        self.setFilter(.pixellate())
+                    },
+                    .default(Text("Sepia Tone")) {
+                        self.currentFilterName = "Sepia Tone"
+                        self.setFilter(.sepiaTone())
+                    },
+                    .default(Text("Unsharp Mask")) {
+                        self.currentFilterName = "Unsharp Mask"
+                        self.setFilter(.unsharpMask())
+                    },
+                    .default(Text("Vignette")) {
+                        self.currentFilterName = "Vignette"
+                        self.setFilter(.vignette())
+                    },
                     .cancel()
                 ])
+            }
+            .alert(isPresented: $showingSaveAlert) {
+                Alert(title: Text("Image is saved"), message: Text("Check your photo album."), dismissButton: .default(Text("OK")))
             }
         }
     }
@@ -101,21 +165,30 @@ struct ContentView: View {
     func applyProcessing() {
         let inputKeys = currentFilter.inputKeys
         if inputKeys.contains(kCIInputIntensityKey) {
+            showIntensitySlider = true
             currentFilter.setValue(filterIntensity, forKey: kCIInputIntensityKey)
+        } else if inputKeys.contains(kCIInputScaleKey) {
+            showIntensitySlider = true
+            currentFilter.setValue(filterIntensity * 10, forKey: kCIInputScaleKey)
+        } else {
+            showIntensitySlider = false
         }
         if inputKeys.contains(kCIInputRadiusKey) {
-            currentFilter.setValue(filterIntensity * 200, forKey: kCIInputRadiusKey)
+            showRadiusSlider = true
+            currentFilter.setValue(filterRadius, forKey: kCIInputRadiusKey)
+        } else {
+            showRadiusSlider = false
         }
-        if inputKeys.contains(kCIInputScaleKey) {
-            currentFilter.setValue(filterIntensity * 10, forKey: kCIInputScaleKey)
-        }
+        
         
         
         guard let outputImage = currentFilter.outputImage else { return }
         
         if let cgimg = context.createCGImage(outputImage, from: outputImage.extent) {
-            let uiImage = UIImage(cgImage: cgimg)
-            image = Image(uiImage: uiImage)
+            processedImage = UIImage(cgImage: cgimg)
+            if let uiImage = processedImage {
+                image = Image(uiImage: uiImage)
+            }
         }
     }
     
